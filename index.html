@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MazeLab — UCS &amp; A* Pathfinding Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Archivo:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080b11; --panel:#0f141d; --panel-2:#131b26;
+    --line:#172029; --border:#202b39; --text:#d4deea; --muted:#6d7a8c;
+    --accent:#5ef38c;            /* path */
+    --start:#38d6ff;             /* start */
+    --goal:#ffc24b;              /* goal */
+    --teleport:#c77dff;          /* teleport */
+    --wall:#28333f;              /* obstacle */
+    --explored:#14222e;          /* visited cell settled */
+    --explored-edge:#1d3a47;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sans:'Archivo',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans)}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(56,214,255,.06), transparent 60%),
+      radial-gradient(800px 600px at -10% 110%, rgba(94,243,140,.05), transparent 55%),
+      var(--bg);
+    padding:clamp(16px,3vw,40px);
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .logo{
+    font-family:var(--mono);font-weight:800;font-size:clamp(26px,4vw,40px);letter-spacing:-1.5px;
+    background:linear-gradient(100deg,var(--start),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .logo .dot{color:var(--teleport);-webkit-text-fill-color:var(--teleport)}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.5px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .swatch{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .board{
+    display:grid;grid-template-columns:1fr;gap:18px;
+  }
+  @media(min-width:880px){ .board{grid-template-columns:1fr 270px} }
+
+  .gridpanel{
+    background:linear-gradient(180deg,var(--panel),#0c111a);
+    border:1px solid var(--border);border-radius:16px;padding:16px;
+    box-shadow:0 30px 60px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.02);
+  }
+  #grid{
+    display:grid;gap:2px;touch-action:none;user-select:none;
+    background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  }
+  .cell{
+    aspect-ratio:1/1;background:var(--panel-2);border-radius:2px;cursor:pointer;
+    transition:background-color .18s ease, box-shadow .25s ease;
+  }
+  .cell.wall{background:var(--wall)}
+  .cell.visited{animation:pop .45s ease-out forwards}
+  .cell.path{animation:trace .35s ease-out forwards}
+  .cell.start{background:var(--start)!important;box-shadow:0 0 10px 1px rgba(56,214,255,.7);z-index:2}
+  .cell.goal{background:var(--goal)!important;box-shadow:0 0 10px 1px rgba(255,194,75,.6);z-index:2}
+  .cell.teleport{background:var(--teleport)!important;box-shadow:0 0 9px 1px rgba(199,125,255,.6);z-index:2}
+  @keyframes pop{0%{transform:scale(.35);background:var(--start)}55%{transform:scale(1.04);background:#2c6c7e}100%{transform:scale(1);background:var(--explored);box-shadow:inset 0 0 0 1px var(--explored-edge)}}
+  @keyframes trace{0%{transform:scale(.4);background:#fff}60%{transform:scale(1.08)}100%{transform:scale(1);background:var(--accent);box-shadow:0 0 9px 1px rgba(94,243,140,.55)}}
+
+  .controls{display:flex;flex-direction:column;gap:16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:15px}
+  .card h3{margin:0 0 11px;font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+  .tools{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .tool,.act,select{
+    font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:9px 6px;cursor:pointer;
+    transition:all .15s ease;text-align:center;
+  }
+  .tool:hover,.act:hover{border-color:#33465b;background:#172230}
+  .tool.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset, 0 0 14px -4px var(--accent)}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  select{width:100%;appearance:none;cursor:pointer}
+
+  .slider{margin-top:4px}
+  .slider label{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:6px}
+  .slider label b{color:var(--text)}
+  input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:#22303f;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 10px -1px var(--accent)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+
+  .run{background:linear-gradient(100deg,var(--accent),#38d6ff);color:#062012;border:none;font-weight:800;font-size:13.5px;letter-spacing:.3px;padding:13px;border-radius:11px}
+  .run:hover{filter:brightness(1.08)}
+  .run:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.4)}
+
+  .cmp{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;color:var(--muted);cursor:pointer;margin-top:2px}
+  .cmp input{accent-color:var(--accent);width:15px;height:15px}
+
+  .stats{display:grid;gap:10px}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 11px}
+  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font-family:var(--mono);font-size:19px;font-weight:700;margin-top:3px}
+  .stat.astar .v{color:var(--accent)} .stat.ucs .v{color:var(--start)}
+  .cmpnote{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.5}
+  .cmpnote b{color:var(--accent)}
+  .hint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6;text-align:center}
+  .hint kbd{background:var(--panel-2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">
+        <div class="logo">Maze<span class="dot">.</span>Lab</div>
+        <div class="tag">UCS &amp; A* · 8-directional · teleports</div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--start)"></i>start</span>
+      <span><i class="swatch" style="background:var(--goal)"></i>goal</span>
+      <span><i class="swatch" style="background:var(--teleport)"></i>teleport</span>
+      <span><i class="swatch" style="background:var(--wall)"></i>wall</span>
+      <span><i class="swatch" style="background:var(--explored)"></i>explored</span>
+      <span><i class="swatch" style="background:var(--accent)"></i>path</span>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="gridpanel">
+      <div id="grid"></div>
+      <p class="hint">Drag to draw walls · pick a tool below · then press <kbd>Run</kbd></p>
+    </div>
+
+    <div class="controls">
+      <div class="card">
+        <h3>Tool</h3>
+        <div class="tools">
+          <button class="tool active" data-tool="wall">Wall</button>
+          <button class="tool" data-tool="erase">Erase</button>
+          <button class="tool" data-tool="start">Start</button>
+          <button class="tool" data-tool="goal">Goal</button>
+          <button class="tool" data-tool="teleport">Teleport</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Algorithm</h3>
+        <select id="algo">
+          <option value="astar">A* (heuristic)</option>
+          <option value="ucs">UCS (uniform cost)</option>
+        </select>
+        <label class="cmp"><input type="checkbox" id="compare" checked> Compare UCS vs A*</label>
+      </div>
+
+      <div class="card">
+        <h3>Settings</h3>
+        <div class="slider">
+          <label>Grid size <b><span id="sizeVal">20</span>²</b></label>
+          <input type="range" id="size" min="6" max="32" value="20">
+        </div>
+        <div class="slider" style="margin-top:12px">
+          <label>Obstacle density <b><span id="densVal">28</span>%</b></label>
+          <input type="range" id="dens" min="0" max="55" value="28">
+        </div>
+        <div class="slider" style="margin-top:12px">
+          <label>Animation speed <b><span id="spdVal">75</span></b></label>
+          <input type="range" id="spd" min="1" max="100" value="75">
+        </div>
+        <div class="row" style="margin-top:13px">
+          <button class="act" id="random">Random</button>
+          <button class="act" id="clear">Clear</button>
+          <button class="act" id="reset">Reset</button>
+        </div>
+      </div>
+
+      <button class="run" id="run">▶  Run search</button>
+
+      <div class="card stats" id="statsCard">
+        <h3>Results</h3>
+        <div id="statsBody" class="cmpnote">Place a start and goal, then run.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---------- State ----------
+let N = 20;
+let grid;                 // 0 free, 1 wall
+let start = {r:2, c:2};
+let goal  = {r:17, c:17};
+let teleports = new Set();// "r,c"
+let tool = "wall";
+let painting = false;
+let animating = false;
+let animId = null;
+
+const gridEl = document.getElementById("grid");
+const cells = []; // cells[r][c] -> DOM element
+
+// ---------- Build / render ----------
+function key(r,c){ return r+","+c; }
+
+function buildGrid(){
+  cancelAnim();
+  gridEl.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
+  gridEl.innerHTML = "";
+  cells.length = 0;
+  for(let r=0;r<N;r++){
+    const row=[];
+    for(let c=0;c<N;c++){
+      const d=document.createElement("div");
+      d.className="cell"; d.dataset.r=r; d.dataset.c=c;
+      gridEl.appendChild(d); row.push(d);
+    }
+    cells.push(row);
+  }
+  render();
+}
+
+function clampEndpoints(){
+  start.r=Math.min(start.r,N-1); start.c=Math.min(start.c,N-1);
+  goal.r =Math.min(goal.r ,N-1); goal.c =Math.min(goal.c ,N-1);
+  if(start.r===goal.r&&start.c===goal.c){ start={r:1,c:1}; goal={r:N-2,c:N-2}; }
+}
+
+function render(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const el=cells[r][c]; el.className="cell";
+    if(grid[r][c]===1) el.classList.add("wall");
+    if(teleports.has(key(r,c))) el.classList.add("teleport");
+  }
+  cells[start.r][start.c].className="cell start";
+  cells[goal.r][goal.c].className="cell goal";
+}
+
+function newGrid(fill){ grid=Array.from({length:N},()=>Array(N).fill(fill?1:0)); }
+
+// ---------- Editing ----------
+function apply(r,c){
+  if(animating) return;
+  const isStart = r===start.r&&c===start.c;
+  const isGoal  = r===goal.r&&c===goal.c;
+  if(tool==="wall"){ if(!isStart&&!isGoal&&!teleports.has(key(r,c))) grid[r][c]=1; }
+  else if(tool==="erase"){ grid[r][c]=0; teleports.delete(key(r,c)); }
+  else if(tool==="start"){ if(!isGoal&&!teleports.has(key(r,c))){ start={r,c}; grid[r][c]=0; } }
+  else if(tool==="goal"){ if(!isStart&&!teleports.has(key(r,c))){ goal={r,c}; grid[r][c]=0; } }
+  else if(tool==="teleport"){
+    if(isStart||isGoal) return;
+    if(teleports.has(key(r,c))) teleports.delete(key(r,c));
+    else { teleports.add(key(r,c)); grid[r][c]=0; }
+  }
+  render();
+}
+
+gridEl.addEventListener("pointerdown",e=>{
+  const t=e.target.closest(".cell"); if(!t)return;
+  painting=true; gridEl.setPointerCapture(e.pointerId);
+  apply(+t.dataset.r,+t.dataset.c);
+});
+gridEl.addEventListener("pointermove",e=>{
+  if(!painting||(tool!=="wall"&&tool!=="erase"))return;
+  const t=document.elementFromPoint(e.clientX,e.clientY);
+  if(t&&t.classList.contains("cell")) apply(+t.dataset.r,+t.dataset.c);
+});
+window.addEventListener("pointerup",()=>painting=false);
+
+// ---------- Pathfinding (mirrors the Java implementation) ----------
+const DR=[-1,-1,-1,0,0,1,1,1], DC=[-1,0,1,-1,1,-1,0,1];
+const STEP=1, TP=2;
+
+// Minimal binary min-heap keyed by a numeric priority.
+class Heap{
+  constructor(){this.a=[];}
+  get size(){return this.a.length;}
+  push(item,p){ const a=this.a; a.push({item,p}); let i=a.length-1;
+    while(i>0){const par=(i-1)>>1; if(a[par].p<=a[i].p)break;[a[par],a[i]]=[a[i],a[par]];i=par;} }
+  pop(){ const a=this.a, top=a[0], last=a.pop();
+    if(a.length){a[0]=last; let i=0; for(;;){let l=2*i+1,r=l+1,s=i;
+      if(l<a.length&&a[l].p<a[s].p)s=l; if(r<a.length&&a[r].p<a[s].p)s=r;
+      if(s===i)break;[a[s],a[i]]=[a[i],a[s]];i=s;} } return top.item; }
+}
+
+function chebyshev(r,c,gr,gc){ return Math.max(Math.abs(r-gr),Math.abs(c-gc)); }
+
+function teleportExitBounds(tps,gr,gc){
+  return tps.map((_,i)=>{
+    let nearest=Infinity;
+    tps.forEach((t,j)=>{ if(i!==j) nearest=Math.min(nearest,chebyshev(t.r,t.c,gr,gc)); });
+    return nearest===Infinity?Infinity:TP+nearest;
+  });
+}
+
+function heuristic(r,c,gr,gc,tps,exits){
+  let best=chebyshev(r,c,gr,gc);
+  for(let i=0;i<tps.length;i++){
+    const v=chebyshev(r,c,tps[i].r,tps[i].c)+exits[i];
+    if(v<best)best=v;
+  }
+  return best;
+}
+
+// Returns {goalNode, expansions, order} where order is the expansion sequence.
+function search(useH){
+  const tps=[...teleports].map(s=>{const[r,c]=s.split(",").map(Number);return{r,c};});
+  const exits=useH?teleportExitBounds(tps,goal.r,goal.c):null;
+  const bestG=Array.from({length:N},()=>Array(N).fill(Infinity));
+  const open=new Heap();
+  const order=[];
+  const startNode={r:start.r,c:start.c,g:0,parent:null};
+  bestG[start.r][start.c]=0;
+  const h0=useH?heuristic(start.r,start.c,goal.r,goal.c,tps,exits):0;
+  open.push(startNode,h0);
+  let expansions=0;
+
+  const isTp=(r,c)=>teleports.has(key(r,c));
+  const relax=(from,r,c,step)=>{
+    if(grid[r][c]===1)return;
+    const g=from.g+step;
+    if(g<bestG[r][c]){
+      bestG[r][c]=g;
+      const h=useH?heuristic(r,c,goal.r,goal.c,tps,exits):0;
+      open.push({r,c,g,parent:from}, g+h);
+    }
+  };
+
+  while(open.size){
+    const cur=open.pop();
+    if(cur.g>bestG[cur.r][cur.c])continue; // stale
+    expansions++; order.push({r:cur.r,c:cur.c});
+    if(cur.r===goal.r&&cur.c===goal.c) return {goalNode:cur,expansions,order};
+
+    if(isTp(cur.r,cur.c)){
+      for(const t of tps){ if(t.r!==cur.r||t.c!==cur.c) relax(cur,t.r,t.c,TP); }
+    }
+    for(let d=0;d<8;d++){
+      const nr=cur.r+DR[d], nc=cur.c+DC[d];
+      if(nr>=0&&nc>=0&&nr<N&&nc<N) relax(cur,nr,nc,STEP);
+    }
+  }
+  return {goalNode:null,expansions,order};
+}
+
+function runOnce(useH){
+  const t0=performance.now();
+  const res=search(useH);
+  const time=performance.now()-t0;
+  const path=[];
+  for(let n=res.goalNode;n;n=n.parent) path.push({r:n.r,c:n.c});
+  path.reverse();
+  return {cost:res.goalNode?res.goalNode.g:null, expansions:res.expansions, time, order:res.order, path};
+}
+
+// ---------- Animation ----------
+function clearViz(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    cells[r][c].classList.remove("visited","path");
+  }
+  render();
+}
+function cancelAnim(){ if(animId){cancelAnimationFrame(animId);animId=null;} animating=false; }
+
+function animate(order,path,onDone){
+  const spd=+document.getElementById("spd").value;
+  const interval=Math.max(0.3,(101-spd)*0.7); // ms per cell
+  let i=0, acc=0, last=performance.now();
+  animating=true; setRunning(true);
+
+  function frame(now){
+    acc+=now-last; last=now;
+    while(acc>=interval && i<order.length){
+      const {r,c}=order[i++];
+      const el=cells[r][c];
+      if(!el.classList.contains("start")&&!el.classList.contains("goal")&&!el.classList.contains("teleport"))
+        el.classList.add("visited");
+      acc-=interval;
+    }
+    if(i<order.length){ animId=requestAnimationFrame(frame); return; }
+    // draw path
+    drawPath(path,()=>{ animating=false; setRunning(false); onDone&&onDone(); });
+  }
+  animId=requestAnimationFrame(frame);
+}
+
+function drawPath(path,done){
+  let i=0;
+  const step=()=>{
+    if(i>=path.length){done&&done();return;}
+    const {r,c}=path[i++];
+    const el=cells[r][c];
+    if(!el.classList.contains("start")&&!el.classList.contains("goal")&&!el.classList.contains("teleport")){
+      el.classList.remove("visited"); el.classList.add("path");
+    }
+    setTimeout(step,28);
+  };
+  step();
+}
+
+// ---------- Run ----------
+function setRunning(on){
+  document.getElementById("run").disabled=on;
+  document.getElementById("run").textContent=on?"● Running…":"▶  Run search";
+}
+
+function fmtCost(v){ return v===null?"—":(Math.round(v*10)/10).toString(); }
+
+function showStats(primaryName, primary, other){
+  const body=document.getElementById("statsBody");
+  const cards=(name,cls,r)=>`
+    <div class="stat ${cls}">
+      <div class="k">${name} · cost</div><div class="v">${fmtCost(r.cost)}</div>
+    </div>
+    <div class="stat ${cls}">
+      <div class="k">${name} · expanded</div><div class="v">${r.expansions}</div>
+    </div>`;
+  let html="";
+  if(other){
+    const a = primaryName==="A*"?primary:other;
+    const u = primaryName==="A*"?other:primary;
+    html=`<div class="statgrid">
+        ${cards("A*","astar",a)}
+        ${cards("UCS","ucs",u)}
+      </div>`;
+    if(a.cost!==null&&u.cost!==null){
+      const same=Math.abs(a.cost-u.cost)<1e-9;
+      const less=u.expansions?Math.round((1-a.expansions/u.expansions)*100):0;
+      html+=`<div class="cmpnote">${same?"Same optimal cost ✓":"Costs differ ⚠"} — A* explored <b>${less}% fewer</b> cells than UCS.</div>`;
+    }else{
+      html+=`<div class="cmpnote">No path between start and goal.</div>`;
+    }
+  }else{
+    const cls=primaryName==="A*"?"astar":"ucs";
+    html=`<div class="statgrid">${cards(primaryName,cls,primary)}</div>
+      <div class="cmpnote">Time: <b>${primary.time.toFixed(2)} ms</b>${primary.cost===null?" — no path found.":"."}</div>`;
+  }
+  body.innerHTML=html;
+}
+
+document.getElementById("run").addEventListener("click",()=>{
+  if(animating){ cancelAnim(); clearViz(); setRunning(false); return; }
+  clearViz();
+  const useH=document.getElementById("algo").value==="astar";
+  const compare=document.getElementById("compare").checked;
+  const primary=runOnce(useH);
+  const primaryName=useH?"A*":"UCS";
+  let other=null;
+  if(compare) other=runOnce(!useH);
+  animate(primary.order, primary.path, ()=>showStats(primaryName, primary, other));
+});
+
+// ---------- Buttons / sliders ----------
+document.querySelectorAll(".tool").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".tool").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active"); tool=b.dataset.tool;
+}));
+
+document.getElementById("random").addEventListener("click",()=>{
+  cancelAnim(); const dens=+document.getElementById("dens").value/100;
+  newGrid(false);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(Math.random()<dens) grid[r][c]=1;
+  grid[start.r][start.c]=0; grid[goal.r][goal.c]=0;
+  teleports.forEach(s=>{const[r,c]=s.split(",").map(Number);grid[r][c]=0;});
+  setRunning(false); render();
+});
+document.getElementById("clear").addEventListener("click",()=>{
+  cancelAnim(); newGrid(false);
+  teleports.forEach(s=>{const[r,c]=s.split(",").map(Number);grid[r][c]=0;});
+  setRunning(false); render();
+});
+document.getElementById("reset").addEventListener("click",()=>{
+  cancelAnim(); teleports.clear(); newGrid(false);
+  start={r:2,c:2}; goal={r:N-2,c:N-2}; clampEndpoints();
+  setRunning(false); document.getElementById("statsBody").innerHTML="Place a start and goal, then run.";
+  render();
+});
+
+const sizeEl=document.getElementById("size");
+sizeEl.addEventListener("input",()=>{
+  N=+sizeEl.value; document.getElementById("sizeVal").textContent=N;
+  teleports.clear(); newGrid(false);
+  start={r:Math.min(2,N-1),c:Math.min(2,N-1)}; goal={r:N-2,c:N-2}; clampEndpoints();
+  buildGrid();
+});
+document.getElementById("dens").addEventListener("input",e=>document.getElementById("densVal").textContent=e.target.value);
+document.getElementById("spd").addEventListener("input",e=>document.getElementById("spdVal").textContent=e.target.value);
+
+// ---------- Init ----------
+N=20; newGrid(false); clampEndpoints(); buildGrid();
+// a couple of default teleports + light obstacles for a nice first impression
+teleports.add(key(0,N-1)); teleports.add(key(N-1,0));
+grid[0][N-1]=0; grid[N-1][0]=0;
+for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(Math.random()<0.18) grid[r][c]=1;
+grid[start.r][start.c]=0; grid[goal.r][goal.c]=0;
+render();
+</script>
+</body>
+</html>

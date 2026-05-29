@@ -7,6 +7,12 @@ Search (UCS)** and **A\*** — and compares them side by side.
 Movement is allowed in all 8 directions, obstacles are placed at random, and the
 maze can contain **teleport** cells that let the agent jump across the grid.
 
+The project ships in two flavours: a **Java command-line solver** (the reference
+implementation) and an **interactive web visualizer** that animates the search
+cell by cell.
+
+**▶ Live demo:** _enable GitHub Pages and paste your link here_
+
 > Originally built as part of an Artificial Intelligence course assignment, then
 > cleaned up and extended into a standalone project.
 
@@ -17,8 +23,8 @@ maze can contain **teleport** cells that let the agent jump across the grid.
 - **8-directional movement** with a uniform step cost of 1.
 - **Teleports** — fully connected; stepping onto any teleport lets you jump to
   any other teleport for a cost of 2.
-- **Teleport-aware, admissible heuristic** — A\* is provably optimal *even with
-  teleports*, so it always returns the same path cost as UCS while expanding far
+- **Teleport-aware, admissible heuristic** — A\* is provably optimal _even with
+  teleports_, so it always returns the same path cost as UCS while expanding far
   fewer cells (verified over 5 000 random mazes).
 - **Coloured terminal visualisation** of the maze, the path, the endpoints and
   the teleports.
@@ -35,7 +41,7 @@ discovered.
 
 **Heuristic.** The estimate is the Chebyshev (chessboard) distance — the minimum
 number of 8-directional steps to the goal. To stay admissible when teleports
-exist, the heuristic also considers reaching the goal *through* a teleport:
+exist, the heuristic also considers reaching the goal _through_ a teleport:
 
 ```
 h(cell) = min( chebyshev(cell, goal),
@@ -46,6 +52,16 @@ Because every distance term ignores obstacles, it can never overestimate the
 real cost — which is exactly the condition that keeps A\* optimal.
 
 ## Getting started
+
+### Web visualizer (no install)
+
+Open `index.html` in any modern browser, or host it for free on **GitHub Pages**:
+push the repo, then in _Settings → Pages_ choose your branch and root folder.
+The page lets you draw walls, place the start/goal/teleports, pick an algorithm,
+and watch the search explore the grid and trace the path. The "Compare" toggle
+runs both algorithms and shows how many fewer cells A\* expands.
+
+### Java command-line solver
 
 Requires a JDK (developed on Java 21).
 
@@ -94,22 +110,23 @@ Time      : 0.357 ms
 ## Legend
 
 | Symbol | Meaning   |
-|:------:|-----------|
-| `.`    | free cell |
-| `#`    | obstacle  |
-| `*`    | path      |
-| `S`    | start     |
-| `G`    | goal      |
-| `T`    | teleport  |
+| :----: | --------- |
+|  `.`   | free cell |
+|  `#`   | obstacle  |
+|  `*`   | path      |
+|  `S`   | start     |
+|  `G`   | goal      |
+|  `T`   | teleport  |
 
 ## Project structure
 
 ```
 maze-solver-astar/
+├── index.html        # interactive web visualizer (GitHub Pages ready)
 ├── GridNode.java     # a single cell during the search (g, h, parent)
 ├── Maze.java         # random maze generation and bounds checking
 ├── Search.java       # UCS and A* + the admissible heuristic
-├── MazeSolver.java   # interactive entry point and visualisation
+├── MazeSolver.java   # interactive command-line entry point
 └── README.md
 ```
 
@@ -120,6 +137,3 @@ maze-solver-astar/
 - A simple graphical (Swing/JavaFX) front-end.
 
 ## Authors
-
-- Karras Dimitris-Kosmas (AM 5247)
-- Theodoropoulos Panagiotis (AM 5230)
