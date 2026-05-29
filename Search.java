@@ -1,5 +1,7 @@
 // Maze Solver — UCS & A* pathfinding with teleports
-// Authors: Karras Dimitris-Kosmas (AM 5247), Theodoropoulos Panagiotis (AM 5230)
+// Originally built for an Artificial Intelligence course assignment
+// Copyright (c) 2025 AbzZ3r0
+// Licensed under the MIT License (see LICENSE)
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,13 +35,13 @@ public class Search {
     }
 
     public static SearchResult solveAStar(int[][] grid, int n, int startRow, int startCol,
-                                          int goalRow, int goalCol, List<int[]> teleports) {
+                                        int goalRow, int goalCol, List<int[]> teleports) {
         return search(grid, n, startRow, startCol, goalRow, goalCol, true, teleports);
     }
 
     private static SearchResult search(int[][] grid, int n, int startRow, int startCol,
-                                       int goalRow, int goalCol, boolean useHeuristic,
-                                       List<int[]> teleports) {
+                                    int goalRow, int goalCol, boolean useHeuristic,
+                                    List<int[]> teleports) {
         // A* orders the frontier by f = g + h; UCS orders by g (i.e. h = 0).
         PriorityQueue<GridNode> open = new PriorityQueue<>(
             (a, b) -> useHeuristic ? Double.compare(a.f(), b.f()) : Double.compare(a.g, b.g)
@@ -74,8 +76,7 @@ public class Search {
             if (isTeleport(current.row, current.col, teleports)) {
                 for (int[] dest : teleports) {
                     if (dest[0] == current.row && dest[1] == current.col) continue;
-                    relax(open, bestG, grid, current, dest[0], dest[1], TELEPORT_COST,
-                          useHeuristic, goalRow, goalCol, teleports, teleportExit);
+                    relax(open, bestG, grid, current, dest[0], dest[1], TELEPORT_COST, useHeuristic, goalRow, goalCol, teleports, teleportExit);
                 }
             }
 
@@ -85,7 +86,7 @@ public class Search {
                 int nc = current.col + DC[d];
                 if (Maze.inBounds(nr, nc, n)) {
                     relax(open, bestG, grid, current, nr, nc, STEP_COST,
-                          useHeuristic, goalRow, goalCol, teleports, teleportExit);
+                        useHeuristic, goalRow, goalCol, teleports, teleportExit);
                 }
             }
         }
@@ -94,9 +95,9 @@ public class Search {
 
     /** Adds a successor to the frontier if it improves the best known cost to that cell. */
     private static void relax(PriorityQueue<GridNode> open, double[][] bestG, int[][] grid,
-                              GridNode from, int row, int col, double stepCost,
-                              boolean useHeuristic, int goalRow, int goalCol,
-                              List<int[]> teleports, double[] teleportExit) {
+                            GridNode from, int row, int col, double stepCost,
+                            boolean useHeuristic, int goalRow, int goalCol,
+                            List<int[]> teleports, double[] teleportExit) {
         if (grid[row][col] != 0) return; // obstacle
         double g = from.g + stepCost;
         if (g < bestG[row][col]) {

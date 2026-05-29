@@ -1,6 +1,8 @@
 // Maze Solver — UCS & A* pathfinding with teleports
-// Authors: Karras Dimitris-Kosmas (AM 5247), Theodoropoulos Panagiotis (AM 5230)
-// Originally built for an Artificial Intelligence course assignment.
+// Originally built for an Artificial Intelligence course assignment
+// Copyright (c) 2025 AbzZ3r0
+// Licensed under the MIT License (see LICENSE)
+
 
 /**
  * A single cell of the maze as seen by the search.
