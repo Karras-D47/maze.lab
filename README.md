@@ -11,7 +11,7 @@ The project ships in two flavours: a **Java command-line solver** (the reference
 implementation) and an **interactive web visualizer** that animates the search
 cell by cell.
 
-**▶ Live demo:** _enable GitHub Pages and paste your link here_
+**▶ Live demo:** https://karras-d47.github.io/maze-solver-/
 
 > Originally built as part of an Artificial Intelligence course assignment, then
 > cleaned up and extended into a standalone project.
